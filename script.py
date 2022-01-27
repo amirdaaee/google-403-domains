@@ -17,8 +17,8 @@ def list_from_file(path):
 ROOT_PATH = Path(os.path.dirname(os.path.abspath(__file__)))
 GOOGLE_IPS_PATH = ROOT_PATH / 'google-ipv4.txt'
 DOMAINS_PATH = ROOT_PATH / 'data/domains.txt'
-GOOGLE_OPEN_PATH = ROOT_PATH / 'data/google-open.json'
-GOOGLE_BLOCK_PATH = ROOT_PATH / 'data/google-block.json'
+GOOGLE_OPEN_PATH = ROOT_PATH / 'data/google-open.txt'
+GOOGLE_BLOCK_PATH = ROOT_PATH / 'data/google-block.txt'
 EXCLUDED_DOMAINS_PATH = ROOT_PATH / 'data/skip.txt'
 RETRIES = 3
 DNS_RESOLVER = aiodns.DNSResolver(nameservers=['8.8.8.8', '8.8.4.4'])
@@ -67,7 +67,7 @@ async def async_script():
                             return domain
                         return None
                 except (aiohttp.ClientError, asyncio.TimeoutError):
-                    pass
+                    continue
         return None
 
     #  ..........
@@ -76,10 +76,7 @@ async def async_script():
         for x in list_from_file(DOMAINS_PATH)
         if not any(map(x.endswith, EXCLUDED_DOMAINS))
     }
-    print('provided domains:', len(domains))
-    #  ..........
-    domains = set(domains)
-    print('unique domains:', len(domains))
+    print('unique domains provided:', len(domains))
     #  ..........
     tasks = {resolve(dom) for dom in domains}
     print('resolving domains...')
@@ -97,9 +94,9 @@ async def async_script():
     print('blocked domains:', len(blocked_domains))
     #  ..........
     with open(GOOGLE_OPEN_PATH, 'w') as f_:
-        json.dump(list(open_domains), f_)
+        f_.write('\n'.join(open_domains))
     with open(GOOGLE_BLOCK_PATH, 'w') as f_:
-        json.dump(list(blocked_domains), f_)
+        f_.write('\n'.join(blocked_domains))
 
 
 if __name__ == '__main__':
