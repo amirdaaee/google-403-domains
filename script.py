@@ -20,7 +20,7 @@ DOMAINS_PATH = ROOT_PATH / 'data/domains.txt'
 GOOGLE_OPEN_PATH = ROOT_PATH / 'data/google-open.json'
 GOOGLE_BLOCK_PATH = ROOT_PATH / 'data/google-block.json'
 EXCLUDED_DOMAINS_PATH = ROOT_PATH / 'data/skip.txt'
-
+RETRIES = 3
 DNS_RESOLVER = aiodns.DNSResolver(nameservers=['8.8.8.8', '8.8.4.4'])
 GOOGLE_IPS = set(list_from_file(GOOGLE_IPS_PATH))
 
@@ -40,12 +40,14 @@ async def async_script():
         return data_
 
     async def resolve(domain):
-        try:
-            res = await DNS_RESOLVER.query(domain, 'A')
-            assert len(res)
-            return (domain, res[0].host)
-        except (aiodns.error.DNSError, AssertionError):
-            return None
+        for _ in range(RETRIES):
+            try:
+                res = await DNS_RESOLVER.query(domain, 'A')
+                assert len(res)
+                return (domain, res[0].host)
+            except (aiodns.error.DNSError, AssertionError):
+                continue
+        return None
 
     def is_google(ip_addr):
         for google_ip in GOOGLE_IPS:
@@ -58,12 +60,14 @@ async def async_script():
         async with aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=60),
                 raise_for_status=False) as session:
-            try:
-                async with session.get('https://' + domain) as resp:
-                    if resp.status != 403:
-                        return domain
-            except (aiohttp.ClientError, asyncio.TimeoutError):
-                pass
+            for _ in range(RETRIES):
+                try:
+                    async with session.get('https://' + domain) as resp:
+                        if resp.status != 403:
+                            return domain
+                        return None
+                except (aiohttp.ClientError, asyncio.TimeoutError):
+                    pass
         return None
 
     #  ..........
