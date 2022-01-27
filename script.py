@@ -2,6 +2,7 @@ import asyncio
 import ipaddress
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 
 import aiodns
@@ -19,6 +20,8 @@ GOOGLE_IPS_PATH = ROOT_PATH / 'google-ipv4.txt'
 DOMAINS_PATH = ROOT_PATH / 'data/domains.txt'
 GOOGLE_OPEN_PATH = ROOT_PATH / 'data/google-open.txt'
 GOOGLE_BLOCK_PATH = ROOT_PATH / 'data/google-block.txt'
+OPEN_DOMAIN_PATH = ROOT_PATH / 'data/open_domains.json'
+OPEN_SUBDOMAIN_PATH = ROOT_PATH / 'data/open_subdomains.json'
 EXCLUDED_DOMAINS_PATH = ROOT_PATH / 'data/skip.txt'
 RETRIES = 3
 DNS_RESOLVER = aiodns.DNSResolver(nameservers=['8.8.8.8', '8.8.4.4'])
@@ -70,6 +73,13 @@ async def async_script():
                     continue
         return None
 
+    @lru_cache
+    def in_blocked_domains(domain):
+        for i_ in blocked_domains:
+            if i_ == domain or i_.endswith('.' + domain):
+                return True
+        return False
+
     #  ..........
     domains = {
         x
@@ -97,6 +107,32 @@ async def async_script():
         f_.write('\n'.join(open_domains))
     with open(GOOGLE_BLOCK_PATH, 'w') as f_:
         f_.write('\n'.join(blocked_domains))
+
+    open_domains = list(open_domains)
+    open_domains.sort(key=len)
+    #  ..........
+    open_domains_set = set()
+    open_subdomains_set = set()
+
+    for dom in open_domains:
+        for i_ in range(dom.count('.') - 1, -1, -1):
+            subdom = dom.split('.', i_)[-1]
+            if subdom in open_domains_set and i_ != 0:
+                open_domains_set.remove(subdom)
+                open_subdomains_set.add(subdom)
+                break
+            if subdom in open_subdomains_set:
+                break
+            if not in_blocked_domains(subdom):
+                if i_ == 0:
+                    open_domains_set.add(subdom)
+                else:
+                    open_subdomains_set.add(subdom)
+                break
+    with open(OPEN_DOMAIN_PATH, 'w') as f_:
+        json.dump(list(open_domains_set), f_)
+    with open(OPEN_SUBDOMAIN_PATH, 'w') as f_:
+        json.dump(list(open_subdomains_set), f_)
 
 
 if __name__ == '__main__':
