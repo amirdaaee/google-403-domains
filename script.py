@@ -49,9 +49,12 @@ async def async_script():
 
     async def is_blocked(domain):
         async with aiohttp.ClientSession() as session:
-            async with session.get('https://' + domain) as resp:
-                if resp.status == 403:
-                    return domain
+            try:
+                async with session.get('https://' + domain) as resp:
+                    if resp.status == 403:
+                        return domain
+            except aiohttp.ClientError:
+                pass
         return None
 
     #  ..........
@@ -73,6 +76,8 @@ async def async_script():
     print('testing google domains...')
     blocked_domains = _drop_nan(await tqdm.gather(*tasks))
     open_domains = domains.difference(blocked_domains)
+    print('total tested domains:', len(open_domains) + len(blocked_domains))
+    print('open domains:', len(open_domains))
     print('blocked domains:', len(blocked_domains))
     #  ..........
     with open(GOOGLE_OPEN_PATH, 'w') as f_:
