@@ -111,26 +111,16 @@ async def async_script():
     open_domains = list(open_domains)
     open_domains.sort(key=len)
     #  ..........
-    open_domains_set = set()
     open_subdomains_set = set()
 
     for dom in open_domains:
         for i_ in range(dom.count('.') - 1, -1, -1):
             subdom = dom.split('.', i_)[-1]
-            if subdom in open_domains_set and i_ != 0:
-                open_domains_set.remove(subdom)
-                open_subdomains_set.add(subdom)
-                break
             if subdom in open_subdomains_set:
                 break
             if not in_blocked_domains(subdom):
-                if i_ == 0:
-                    open_domains_set.add(subdom)
-                else:
-                    open_subdomains_set.add(subdom)
+                open_subdomains_set.add(subdom)
                 break
-    with open(OPEN_DOMAIN_PATH, 'w') as f_:
-        json.dump(list(open_domains_set), f_)
     with open(OPEN_SUBDOMAIN_PATH, 'w') as f_:
         json.dump(list(open_subdomains_set), f_)
 
