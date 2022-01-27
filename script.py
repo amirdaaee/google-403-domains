@@ -35,8 +35,9 @@ async def async_script():
     async def resolve(domain):
         try:
             res = await DNS_RESOLVER.query(domain, 'A')
+            assert len(res)
             return (domain, res[0].host)
-        except aiodns.error.DNSError:
+        except (aiodns.error.DNSError, AssertionError):
             return None
 
     def is_google(ip_addr):
