@@ -48,12 +48,14 @@ async def async_script():
         return False
 
     async def is_blocked(domain):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=60),
+                raise_for_status=False) as session:
             try:
                 async with session.get('https://' + domain) as resp:
                     if resp.status == 403:
                         return domain
-            except aiohttp.ClientError:
+            except (aiohttp.ClientError, asyncio.TimeoutError):
                 pass
         return None
 
